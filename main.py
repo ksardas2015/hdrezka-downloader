@@ -457,7 +457,7 @@ class Download:
             stream_url = GetStream(self.config['site_url'], self.config['credentials']).get_movie_stream(data)
             if ".mp4" in stream_url:
                 stream_url = stream_url.split(".mp4")[0] + ".mp4"
-            downloaded_folder = f"../{self.name}"
+            downloaded_folder = os.path.join("downloads", self.name)
             os.makedirs(downloaded_folder, exist_ok=True)
             file_name = f"{downloaded_folder}/{self.name}-{self.quality}.mp4"
             self.__download({'stream_url': stream_url, 'file_name': file_name})
@@ -539,7 +539,7 @@ class Download:
         stream_url = GetStream(self.config['site_url'], self.config['credentials']).get_series_stream(data)
         if ".mp4" in stream_url:
             stream_url = stream_url.split(".mp4")[0] + ".mp4"
-        downloaded_folder = f"../{self.name}"
+        downloaded_folder = os.path.join("downloads", self.name)
         os.makedirs(downloaded_folder, exist_ok=True)
         season_str = str(season).zfill(2)
         episode_str = str(episode).zfill(2)
