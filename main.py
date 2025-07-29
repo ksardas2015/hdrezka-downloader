@@ -78,7 +78,7 @@ class Config:
             site_url = "https://standby-rezka.tv" if choice == "2" else input(f"{Fore.YELLOW}Enter custom URL (e.g., https://example.com): {Style.RESET_ALL}").strip()
             if not site_url.startswith("https://"):
                 site_url = "https://" + site_url
-            print(f"{Fore.YELLOW}To find cookie parameters, visit [GitHub placeholder link](https://github.com/placeholder){Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}To find cookie parameters, visit [GitHub](https://github.com/ksardas2015/hdrezka-downloader/blob/main/docs/cookie-guide.md){Style.RESET_ALL}")
             dle_user_id = input(f"{Fore.YELLOW}Enter dle_user_id: {Style.RESET_ALL}").strip()
             dle_password = input(f"{Fore.YELLOW}Enter dle_password: {Style.RESET_ALL}").strip()
             credentials = {"dle_user_id": dle_user_id, "dle_password": dle_password}
@@ -125,7 +125,7 @@ class Config:
                 site_url = "https://standby-rezka.tv" if choice == "2" else input(f"{Fore.YELLOW}Enter custom URL (e.g., https://example.com): {Style.RESET_ALL}").strip()
                 if not site_url.startswith("https://"):
                     site_url = "https://" + site_url
-                print(f"{Fore.YELLOW}To find cookie parameters, visit [GitHub placeholder link](https://github.com/placeholder){Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}To find cookie parameters, visit [GitHub](https://github.com/ksardas2015/hdrezka-downloader/blob/main/docs/cookie-guide.md){Style.RESET_ALL}")
                 dle_user_id = input(f"{Fore.YELLOW}Enter dle_user_id [current: {self._config['credentials'].get('dle_user_id', '')}]: {Style.RESET_ALL}").strip() or self._config['credentials'].get('dle_user_id', '')
                 dle_password = input(f"{Fore.YELLOW}Enter dle_password [current: *****]: {Style.RESET_ALL}").strip() or self._config['credentials'].get('dle_password', '')
                 credentials = {"dle_user_id": dle_user_id, "dle_password": dle_password}
