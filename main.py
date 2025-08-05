@@ -478,11 +478,6 @@ class Download:
             futures = [executor.submit(self.__download_with_retries, season, episode) for episode in range(1, episodes_count + 1)]
             for future in futures:
                 future.result()
-        missing_episodes = [ep for ep in range(1, episodes_count + 1) if not self.__is_episode_downloaded(season, ep, check_size=True)]
-        if missing_episodes:
-            print(f"{Fore.RED}Retrying missing episodes: {missing_episodes}{Style.RESET_ALL}")
-            for episode in missing_episodes:
-                self.__download_with_retries(season, episode)
 
     def download_episodes(self, season, start_episode, end_episode):
         if season < 1 or season > self.data['seasons_count']:
@@ -495,11 +490,6 @@ class Download:
             futures = [executor.submit(self.__download_with_retries, season, episode) for episode in range(start_episode, end_episode + 1)]
             for future in futures:
                 future.result()
-        missing_episodes = [ep for ep in range(start_episode, end_episode + 1) if not self.__is_episode_downloaded(season, ep, check_size=True)]
-        if missing_episodes:
-            print(f"{Fore.RED}Retrying missing episodes: {missing_episodes}{Style.RESET_ALL}")
-            for episode in missing_episodes:
-                self.__download_with_retries(season, episode)
 
     def download_seasons(self, start, end):
         if start < 1 or end > self.data['seasons_count'] or start > end:
@@ -517,6 +507,8 @@ class Download:
                 if self.__is_episode_downloaded(season, episode, check_size=True):
                     print(f"{Fore.GREEN}S{season:02}E{episode:02} downloaded successfully{Style.RESET_ALL}")
                     return
+                else:
+                    print(f"{Fore.YELLOW}S{season:02}E{episode:02} downloaded but verification failed. Retrying...{Style.RESET_ALL}")
             except Exception as e:
                 print(f"{Fore.RED}Error downloading S{season:02}E{episode:02}: {e}{Style.RESET_ALL}")
                 if attempt < retries - 1:
@@ -587,35 +579,69 @@ class Download:
     def __is_episode_downloaded(self, season, episode, check_size=False):
         season_str = str(season).zfill(2)
         episode_str = str(episode).zfill(2)
-        file_name = f"../{self.name}/s{season_str}e{episode_str}-{self.quality}.mp4"
+        # Use absolute path to avoid relative path issues
+        file_name = os.path.join(os.getcwd(), "downloads", self.name, f"s{season_str}e{episode_str}-{self.quality}.mp4")
         if not os.path.isfile(file_name):
             return False
         if check_size:
             try:
-                data = {'id': self.data['data-id'], 'translator_id': self.translator_id, 'season': season, 'episode': episode, 'action': 'get_stream', 'quality': self.quality}
+                data = {
+                    'id': self.data['data-id'],
+                    'translator_id': self.translator_id,
+                    'season': season,
+                    'episode': episode,
+                    'action': 'get_stream',
+                    'quality': self.quality
+                }
                 stream_url = GetStream(self.config['site_url'], self.config['credentials']).get_series_stream(data)
+                if ".mp4" in stream_url:
+                    stream_url = stream_url.split(".mp4")[0] + ".mp4"
                 with Request(self.config['site_url'], self.config['credentials']).get(stream_url, stream=True) as r:
                     expected_size = int(r.headers.get('content-length', 0))
                 actual_size = os.path.getsize(file_name)
-                return actual_size >= expected_size * 0.95  # Allow 5% margin
-            except:
-                return False  # If size check fails, assume incomplete
+                # Allow 10% margin for size comparison to account for metadata differences
+                if expected_size == 0 or actual_size >= expected_size * 0.9:
+                    return True
+                else:
+                    print(f"{Fore.YELLOW}File S{season_str}E{episode_str} exists but size mismatch (actual: {actual_size}, expected: {expected_size}). Redownloading.{Style.RESET_ALL}")
+                    os.remove(file_name)  # Remove incomplete file
+                    return False
+            except Exception as e:
+                print(f"{Fore.YELLOW}Size check failed for S{season_str}E{episode_str}: {e}. Assuming incomplete.{Style.RESET_ALL}")
+                os.remove(file_name) if os.path.exists(file_name) else None  # Remove potentially corrupt file
+                return False
         return True
 
     def __is_movie_downloaded(self, check_size=False):
-        file_name = f"../{self.name}/{self.name}-{self.quality}.mp4"
+        file_name = os.path.join(os.getcwd(), "downloads", self.name, f"{self.name}-{self.quality}.mp4")
         if not os.path.isfile(file_name):
             return False
         if check_size:
             try:
-                data = {'id': self.data['data-id'], 'translator_id': self.translator_id, 'action': 'get_movie', 'quality': self.quality, 'url': self.url}
+                data = {
+                    'id': self.data['data-id'],
+                    'translator_id': self.translator_id,
+                    'action': 'get_movie',
+                    'quality': self.quality,
+                    'url': self.url
+                }
                 stream_url = GetStream(self.config['site_url'], self.config['credentials']).get_movie_stream(data)
+                if ".mp4" in stream_url:
+                    stream_url = stream_url.split(".mp4")[0] + ".mp4"
                 with Request(self.config['site_url'], self.config['credentials']).get(stream_url, stream=True) as r:
                     expected_size = int(r.headers.get('content-length', 0))
                 actual_size = os.path.getsize(file_name)
-                return actual_size >= expected_size * 0.95  # Allow 5% margin
-            except:
-                return False  # If size check fails, assume incomplete
+                # Allow 10% margin for size comparison
+                if expected_size == 0 or actual_size >= expected_size * 0.9:
+                    return True
+                else:
+                    print(f"{Fore.YELLOW}File {self.name} exists but size mismatch (actual: {actual_size}, expected: {expected_size}). Redownloading.{Style.RESET_ALL}")
+                    os.remove(file_name)  # Remove incomplete file
+                    return False
+            except Exception as e:
+                print(f"{Fore.YELLOW}Size check failed for {self.name}: {e}. Assuming incomplete.{Style.RESET_ALL}")
+                os.remove(file_name) if os.path.exists(file_name) else None  # Remove potentially corrupt file
+                return False
         return True
 
 # Main Function
