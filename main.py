@@ -441,7 +441,71 @@ class Download:
         self.name = download_data['url'].split('/')[-1].split('.')[0]
         self.config = config
         self.translator_id = self.__get_translation() if download_data['translations_list'] else self.__detect_translation()
+        
+        # --- ДОБАВЬТЕ ЭТУ СТРОКУ ---
+        # If it's a series, update episode counts based on the chosen translation
+        if self.data['type'] != 'movie':
+            self.__update_episodes_for_translation()
+        # ---------------------------
+    
+    def __update_episodes_for_translation(self):
+        """
+        Sends a request to get the correct number of episodes for the selected translation
+        and updates the instance's data.
+        """
+        print(f"{Fore.YELLOW}Checking episode count for the selected translation...{Style.RESET_ALL}")
+        try:
+            data = {
+                'id': self.data['data-id'],
+                'translator_id': self.translator_id,
+                'action': 'get_episodes'  # Action to get seasons and episodes
+            }
+            # The endpoint is likely get_cdn_series, as it handles series-related actions
+            request_url = f"{self.config['site_url']}/ajax/get_cdn_series/"
+            
+            response = Request(self.config['site_url'], self.config['credentials']).post(request_url, data=data).json()
 
+            if response.get('success'):
+                # The response contains the HTML for seasons and episodes tabs
+                episodes_html = response.get('episodes', '')
+                seasons_html = response.get('seasons', '')
+                soup = BeautifulSoup(seasons_html + episodes_html, 'html.parser')
+                
+                new_seasons_count = len(soup.select('#simple-seasons-tabs > li'))
+                if new_seasons_count == 0 and self.data['seasons_count'] > 0: # Fallback if only episodes are returned
+                    new_seasons_count = self.data['seasons_count']
+
+                new_episodes_count = {}
+                new_allepisodes = 0
+                
+                # If there are season tabs, parse them
+                if new_seasons_count > 0:
+                    for i in range(1, new_seasons_count + 1):
+                        counter = len(soup.select(f'#simple-episodes-list-{i} > li'))
+                        new_episodes_count[i] = counter
+                        new_allepisodes += counter
+                else: # If there are no seasons, count all episodes as season 1
+                    counter = len(soup.select('li'))
+                    if counter > 0:
+                        new_seasons_count = 1
+                        new_episodes_count[1] = counter
+                        new_allepisodes = counter
+
+                # If new data is valid, update the download data
+                if new_allepisodes > 0:
+                    self.data['seasons_count'] = new_seasons_count
+                    self.data['seasons_episodes_count'] = new_episodes_count
+                    self.data['allepisodes'] = new_allepisodes
+                    print(f"{Fore.GREEN}Updated Info | Seasons: {self.data['seasons_count']}, Episodes: {self.data['seasons_episodes_count']}, Total: {self.data['allepisodes']}{Style.RESET_ALL}")
+                else:
+                    print(f"{Fore.YELLOW}Could not update episode count, using default values.{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}Could not update episode count, using default values.{Style.RESET_ALL}")
+
+        except Exception as e:
+            print(f"{Fore.RED}An error occurred while updating episode counts: {e}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}Proceeding with default episode counts.{Style.RESET_ALL}")
+    
     def download_movie(self):
         if self.__is_movie_downloaded(check_size=True):
             print(f"{Fore.GREEN}Movie {self.name} already downloaded and verified{Style.RESET_ALL}")
